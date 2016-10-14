@@ -22,14 +22,16 @@ import (
 var (
 	app = kingpin.New("app", "Codebase project management for pro's.")
 
-	// $ prod init --name=MyProject --command="docker-compose build"
+	// $ proj init --name=MyProject --command="docker-compose build"
 	initProject        = app.Command("init", "Create a new project.")
 	initProjectName    = initProject.Flag("name", "Project name").Required().String()
 	initProjectPath    = initProject.Flag("path", "Project path.").Required().String()
 	initProjectCommand = initProject.Flag("command", "Boot command.").Required().String()
 
+	// $ proj commit
 	commit = app.Command("commit", "Commit a config file change.")
 
+	// $ proj start my-project
 	start     = app.Command("start", "Start your project.")
 	startName = start.Flag("name", "Project name.").Required().String()
 )
