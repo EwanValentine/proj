@@ -32,7 +32,7 @@ var (
 
 	// $ proj start my-project
 	start     = app.Command("start", "Start your project.")
-	startName = start.Flag("name", "Project name.").Required().String()
+	startName = start.Arg("name", "Project name.").Required().String()
 )
 
 // Proj - Main project instance.
