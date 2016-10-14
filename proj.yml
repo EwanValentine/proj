@@ -1,0 +1,4 @@
+id: "123"
+name: test-project
+path: /Users/EwanValentine/go/src/github.com/EwanValentine/proj
+command: docker ps
