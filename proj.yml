@@ -1,4 +1,4 @@
 id: "123"
-name: test-project
-path: /Users/EwanValentine/go/src/github.com/EwanValentine/proj
-command: docker ps
+name: test
+path: /Users/ewanvalentine/go/src/github.com/EwanValentine/proj
+command: ls

@@ -4,16 +4,15 @@ import (
 
 	// Core
 
-	"bytes"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"strings"
 
 	// Third party
+	"github.com/fatih/color"
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/alecthomas/kingpin.v2"
 	yaml "gopkg.in/yaml.v2"
@@ -202,25 +201,18 @@ func (proj *Proj) StartProject(name string) {
 	project := proj.LoadProject(name)
 
 	// Run start command
-	cmd := exec.Command("bash", "-c", "cd", project.Path, "&&", project.Command)
-
-	// Stdout buffer
-	cmdOutput := &bytes.Buffer{}
-
-	// Attach buffer to command
-	cmd.Stdout = cmdOutput
+	out, err := exec.Command("sh", "-c", project.Command, project.Path).Output()
 
 	// Execute command
-	printCommand(cmd)
-	err := cmd.Run() // will wait for command to return
+	printCommand(project.Command + project.Path)
 	printError(err)
 
 	// Only output the commands stdout
-	printOutput(cmdOutput.Bytes())
+	printOutput(out)
 }
 
-func printCommand(cmd *exec.Cmd) {
-	fmt.Printf("==> Executing: %s\n", strings.Join(cmd.Args, " "))
+func printCommand(command string) {
+	color.Magenta("==> Executing: %s\n", command)
 }
 
 func printError(err error) {
@@ -231,7 +223,7 @@ func printError(err error) {
 
 func printOutput(outs []byte) {
 	if len(outs) > 0 {
-		fmt.Printf("==> Output: %s\n", string(outs))
+		color.Blue("==> Output: %s\n", string(outs))
 	}
 }
 
