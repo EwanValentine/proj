@@ -21,7 +21,9 @@ Ensure you have Go on your local system.
 
 #### Create a new proj project
 
-Say you have a project in `~/Development/project-a`. Simply run... `proj init --name="project-a" --path="~/Development/project-a" --command="npm install && npm start"`. 
+Say you have a project in `/Users/ewanvalentine/Development/project-a`. 
+
+Simply run... `proj init --name="project-a" --path="/Users/ewanvalentine/Development/project-a" --command="npm install && npm start"`. 
 
 This will save a copy of your project, into a database, and it will create a `proj.yml` config file in your project root. You can alter your settings, by altering this yaml file, then runnning `proj commit` whilst in that directory. 
 
@@ -30,3 +32,4 @@ This will save a copy of your project, into a database, and it will create a `pr
 - Add a current project state. Keeps track of the current running project.
 - Add a 'teardown' command, for pulling a current project down, once a new project is started.
 - Add commands as an array, rather than a single string. Ideally support both. 
+- Support relative directories.
