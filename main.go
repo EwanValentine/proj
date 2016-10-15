@@ -15,6 +15,7 @@ import (
 	// Third party
 	"github.com/fatih/color"
 	_ "github.com/mattn/go-sqlite3"
+	uuid "github.com/satori/go.uuid"
 	"gopkg.in/alecthomas/kingpin.v2"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -78,10 +79,24 @@ var (
     `
 )
 
+var cursor = "==>"
+
 // cliError - Returns an error and exits with code 1.
 func cliError(err error) {
-	color.Red(fmt.Sprintf("==> Error: %s\n", err.Error()))
+	color.Red(fmt.Sprintf("%s Error: %s\n", cursor, err.Error()))
 	os.Exit(1)
+}
+
+func cliSuccessOut(output string) {
+	color.Green(fmt.Sprintf("%s %s", cursor, output))
+}
+
+func cliOut(output string) {
+	color.Blue(fmt.Sprintf("%s %s", cursor, output))
+}
+
+func cliStreamOut(message chan string) {
+	cliOut(<-message)
 }
 
 // Proj - Main project instance.
@@ -129,6 +144,8 @@ func CreateTable(db *sql.DB) {
 // SaveProject - Save a project to the database.
 func (proj *Proj) SaveProject(project Project) {
 
+	project.ID = uuid.NewV4().String()
+
 	stmt, err := proj.db.Prepare(add)
 
 	defer stmt.Close()
@@ -138,6 +155,8 @@ func (proj *Proj) SaveProject(project Project) {
 	if err != nil {
 		cliError(errors.New("Failed to save project."))
 	}
+
+	cliOut("Saved to database.")
 }
 
 // UpdateProject - Update a project in the database.
@@ -187,7 +206,6 @@ func main() {
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 	case initProject.FullCommand():
 		project := Project{
-			ID:       "123",
 			Name:     *initProjectName,
 			Path:     *initProjectPath,
 			Command:  *initProjectCommand,
@@ -196,15 +214,15 @@ func main() {
 		proj.InitProject(project)
 
 	case commit.FullCommand():
-		color.Green("Updating...")
+		cliOut("Updating...")
 		proj.CommitChanges()
 
 	case start.FullCommand():
-		color.Green("Starting " + *startName)
+		cliOut("Starting: " + *startName)
 		proj.StartProject(*startName)
 
 	case stop.FullCommand():
-		color.Blue("Stopping: " + *stopName)
+		cliOut("Stopping: " + *stopName)
 		proj.StopProject(*stopName)
 	}
 }
@@ -213,8 +231,10 @@ func main() {
 func (proj *Proj) InitProject(project Project) {
 
 	// Create a YAML file from project details.
-	proj.CreateProjectFile(project)
-	proj.SaveProject(project)
+	go proj.CreateProjectFile(project)
+	go proj.SaveProject(project)
+
+	cliOut("Saved project: " + project.Name)
 }
 
 // StartProject - Start a project.
@@ -274,12 +294,12 @@ func (proj *Proj) StopProject(name string) {
 }
 
 func printCommand(cmd *exec.Cmd) {
-	color.Magenta("==> Executing: %s\n", strings.Join(cmd.Args, " "))
+	color.Magenta("%s Executing: %s\n", cursor, strings.Join(cmd.Args, " "))
 }
 
 func printOutput(outs []byte) {
 	if len(outs) > 0 {
-		color.Blue("==> Output: %s\n", string(outs))
+		color.Blue("%s Output: %s\n", cursor, string(outs))
 	}
 }
 
@@ -290,14 +310,16 @@ func (proj *Proj) CreateProjectFile(project Project) {
 	data, err := yaml.Marshal(&project)
 
 	if err != nil {
-		panic(err)
+		cliError(err)
 	}
 
 	err = ioutil.WriteFile(project.Path+"/proj.yml", data, 0755)
 
 	if err != nil {
-		panic(err)
+		cliError(err)
 	}
+
+	cliOut("Created config file.")
 }
 
 // CommitChanges - Commit file changes to the database.
@@ -309,14 +331,14 @@ func (proj *Proj) CommitChanges() {
 	data, err := ioutil.ReadFile("./proj.yml")
 
 	if err != nil {
-		panic(err)
+		cliError(err)
 	}
 
 	err = yaml.Unmarshal(data, &project)
 
 	if err != nil {
-		panic(err)
+		cliError(err)
 	}
 
-	proj.UpdateProject(project)
+	go proj.UpdateProject(project)
 }
