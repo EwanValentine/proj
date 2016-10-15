@@ -37,6 +37,9 @@ var (
 	// $ proj start my-project
 	start     = app.Command("start", "Start your project.")
 	startName = start.Arg("name", "Project name.").Required().String()
+
+	stop     = app.Command("stop", "Stop your project.")
+	stopName = stop.Arg("name", "Project name.").Required().String()
 )
 
 // SQL statements
@@ -148,7 +151,7 @@ func (proj *Proj) UpdateProject(project Project) {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(project.Name, project.Command, project.Path, project.ID, project.TearDown)
+	_, err = stmt.Exec(project.Name, project.Command, project.Path, project.TearDown, project.ID)
 
 	if err != nil {
 		cliError(errors.New("Failed to update project."))
@@ -193,12 +196,16 @@ func main() {
 		proj.InitProject(project)
 
 	case commit.FullCommand():
-		fmt.Println("Updating...")
+		color.Green("Updating...")
 		proj.CommitChanges()
 
 	case start.FullCommand():
-		fmt.Println("Starting " + *startName)
+		color.Green("Starting " + *startName)
 		proj.StartProject(*startName)
+
+	case stop.FullCommand():
+		color.Blue("Stopping: " + *stopName)
+		proj.StopProject(*stopName)
 	}
 }
 
@@ -218,6 +225,34 @@ func (proj *Proj) StartProject(name string) {
 
 	// Run start command
 	cmd := exec.Command("sh", "-c", project.Command, project.Path)
+
+	// Stdout buffer
+	cmdOutput := &bytes.Buffer{}
+
+	// Attach buffer to command
+	cmd.Stdout = cmdOutput
+
+	// Execute command
+	printCommand(cmd)
+
+	err := cmd.Run() // will wait for command to return
+
+	if err != nil {
+		cliError(err)
+	}
+
+	// Only output the commands stdout
+	printOutput(cmdOutput.Bytes())
+}
+
+// StopProject - Stops a project. @todo - this is almost identical to the start project function.
+func (proj *Proj) StopProject(name string) {
+
+	// Load project.
+	project := proj.LoadProject(name)
+
+	// Run start command
+	cmd := exec.Command("sh", "-c", project.TearDown, project.Path)
 
 	// Stdout buffer
 	cmdOutput := &bytes.Buffer{}
