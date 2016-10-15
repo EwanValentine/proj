@@ -4,12 +4,14 @@ import (
 
 	// Core
 
+	"bytes"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 
 	// Third party
 	"github.com/fatih/color"
@@ -20,7 +22,7 @@ import (
 
 var (
 
-	// New app instance.
+	// Create newi cli app instance.
 	app = kingpin.New("app", "Codebase project management for pro's.")
 
 	// $ proj init --name=MyProject --command="docker-compose build"
@@ -203,18 +205,25 @@ func (proj *Proj) StartProject(name string) {
 	project := proj.LoadProject(name)
 
 	// Run start command
-	out, err := exec.Command("sh", "-c", project.Command, project.Path).Output()
+	cmd := exec.Command("sh", "-c", project.Command, project.Path)
+
+	// Stdout buffer
+	cmdOutput := &bytes.Buffer{}
+
+	// Attach buffer to command
+	cmd.Stdout = cmdOutput
 
 	// Execute command
-	printCommand(project.Command + project.Path)
+	printCommand(cmd)
+	err := cmd.Run() // will wait for command to return
 	printError(err)
 
 	// Only output the commands stdout
-	printOutput(out)
+	printOutput(cmdOutput.Bytes())
 }
 
-func printCommand(command string) {
-	color.Magenta("==> Executing: %s\n", command)
+func printCommand(cmd *exec.Cmd) {
+	color.Magenta("==> Executing: %s\n", strings.Join(cmd.Args, " "))
 }
 
 func printError(err error) {
