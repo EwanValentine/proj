@@ -161,7 +161,7 @@ func (proj *Proj) LoadProject(name string) Project {
 
 func main() {
 
-	const DbPath = "projects.db"
+	const DbPath = "/tmp/projects.db"
 
 	db := InitDB(DbPath)
 	defer db.Close()
