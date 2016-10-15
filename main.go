@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -26,10 +25,11 @@ var (
 	app = kingpin.New("app", "Codebase project management for pro's.")
 
 	// $ proj init --name=MyProject --command="docker-compose build"
-	initProject        = app.Command("init", "Create a new project.")
-	initProjectName    = initProject.Flag("name", "Project name").Required().String()
-	initProjectPath    = initProject.Flag("path", "Project path.").Required().String()
-	initProjectCommand = initProject.Flag("command", "Boot command.").Required().String()
+	initProject         = app.Command("init", "Create a new project.")
+	initProjectName     = initProject.Flag("name", "Project name").Required().String()
+	initProjectPath     = initProject.Flag("path", "Project path.").Required().String()
+	initProjectCommand  = initProject.Flag("command", "Boot command.").Required().String()
+	initProjectTearDown = initProject.Flag("teardown", "Tear down command.").String()
 
 	// $ proj commit
 	commit = app.Command("commit", "Commit a config file change.")
@@ -39,6 +39,43 @@ var (
 	startName = start.Arg("name", "Project name.").Required().String()
 )
 
+// SQL statements
+var (
+	table = `
+        CREATE TABLE IF NOT EXISTS projects(
+            Id TEXT NOT NULL PRIMARY KEY,
+            Name TEXT,
+            Path TEXT,
+            Command TEXT,
+            TearDown TEXT,
+            CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `
+
+	add = `
+        INSERT OR REPLACE INTO projects(
+            Id, 
+            Name,
+            Path,
+            Command,
+            TearDown,
+            CreatedAt
+        ) values(?, ?, ?, ?, ?, CURRENT_TIMESTAMP);
+    `
+
+	update = `
+        UPDATE projects
+        SET Name = ?, Command = ?, Path = ?, TearDown = ?
+        WHERE Id = ?
+    `
+
+	find = `
+        SELECT Id, Name, Command, Path, TearDown FROM projects
+        WHERE Name = ?
+    `
+)
+
+// cliError - Returns an error and exits with code 1.
 func cliError(err error) {
 	color.Red(fmt.Sprintf("==> Error: %s\n", err.Error()))
 	os.Exit(1)
@@ -56,17 +93,19 @@ func NewProj(db *sql.DB) *Proj {
 
 // Project - Project object
 type Project struct {
-	ID      string `yaml:"id"`
-	Name    string `yaml:"name"`
-	Path    string `yaml:"path"`
-	Command string `yaml:"command"`
+	ID       string `yaml:"id"`
+	Name     string `yaml:"name"`
+	Path     string `yaml:"path"`
+	Command  string `yaml:"command"`
+	TearDown string `yaml:"tear_down"`
 }
 
 // InitDB - Initialise database.
 func InitDB(filepath string) *sql.DB {
 	db, err := sql.Open("sqlite3", filepath)
+
 	if err != nil {
-		panic(err)
+		cliError(errors.New("Could not create database."))
 	}
 
 	if db == nil {
@@ -78,16 +117,6 @@ func InitDB(filepath string) *sql.DB {
 
 // CreateTable - Create table if not exists.
 func CreateTable(db *sql.DB) {
-	table := `
-        CREATE TABLE IF NOT EXISTS projects(
-            Id TEXT NOT NULL PRIMARY KEY,
-            Name TEXT,
-            Path TEXT,
-            Command TEXT,
-            CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    `
-
 	_, err := db.Exec(table)
 	if err != nil {
 		cliError(errors.New("Failed to create database table."))
@@ -96,21 +125,12 @@ func CreateTable(db *sql.DB) {
 
 // SaveProject - Save a project to the database.
 func (proj *Proj) SaveProject(project Project) {
-	sqlAdd := `
-        INSERT OR REPLACE INTO projects(
-            Id, 
-            Name,
-            Path,
-            Command,
-            CreatedAt
-        ) values(?, ?, ?, ?, CURRENT_TIMESTAMP);
-    `
 
-	stmt, err := proj.db.Prepare(sqlAdd)
+	stmt, err := proj.db.Prepare(add)
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(project.ID, project.Name, project.Path, project.Command)
+	_, err = stmt.Exec(project.ID, project.Name, project.Path, project.Command, project.TearDown)
 
 	if err != nil {
 		cliError(errors.New("Failed to save project."))
@@ -119,11 +139,6 @@ func (proj *Proj) SaveProject(project Project) {
 
 // UpdateProject - Update a project in the database.
 func (proj *Proj) UpdateProject(project Project) {
-	update := `
-        UPDATE projects
-        SET Name = ?, Command = ?, Path = ?
-        WHERE Id = ?
-    `
 
 	stmt, err := proj.db.Prepare(update)
 
@@ -133,25 +148,21 @@ func (proj *Proj) UpdateProject(project Project) {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(project.Name, project.Command, project.Path, project.ID)
+	_, err = stmt.Exec(project.Name, project.Command, project.Path, project.ID, project.TearDown)
 
 	if err != nil {
-		log.Panic(err)
+		cliError(errors.New("Failed to update project."))
 	}
 }
 
 // LoadProject - Load a project from the database.
 func (proj *Proj) LoadProject(name string) Project {
-	find := `
-        SELECT Id, Name, Command, Path FROM projects
-        WHERE Name = ?
-    `
 
 	row := proj.db.QueryRow(find, name)
 
 	var project Project
 
-	err := row.Scan(&project.ID, &project.Name, &project.Command, &project.Path)
+	err := row.Scan(&project.ID, &project.Name, &project.Command, &project.Path, &project.TearDown)
 
 	if err != nil {
 		cliError(errors.New("Failed to load project."))
@@ -172,12 +183,12 @@ func main() {
 
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 	case initProject.FullCommand():
-		fmt.Println(*initProjectName)
 		project := Project{
-			ID:      "123",
-			Name:    *initProjectName,
-			Path:    *initProjectPath,
-			Command: *initProjectCommand,
+			ID:       "123",
+			Name:     *initProjectName,
+			Path:     *initProjectPath,
+			Command:  *initProjectCommand,
+			TearDown: *initProjectTearDown,
 		}
 		proj.InitProject(project)
 
