@@ -27,6 +27,12 @@ Simply run... `proj init --name="project-a" --path="/Users/ewanvalentine/Develop
 
 This will save a copy of your project, into a database, and it will create a `proj.yml` config file in your project root. You can alter your settings, by altering this yaml file, then runnning `proj commit` whilst in that directory. 
 
+#### Start a project
+Run `$ proj start my-project`
+
+#### Stop a project
+Run `$ proj stop my-project` - this will run your tear down script.
+
 #### Todo:
 
 - Add a current project state. Keeps track of the current running project.
