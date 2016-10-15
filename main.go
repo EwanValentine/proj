@@ -3,9 +3,9 @@ package main
 import (
 
 	// Core
-
 	"bytes"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -39,6 +39,11 @@ var (
 	startName = start.Arg("name", "Project name.").Required().String()
 )
 
+func cliError(err error) {
+	color.Red(fmt.Sprintf("==> Error: %s\n", err.Error()))
+	os.Exit(1)
+}
+
 // Proj - Main project instance.
 type Proj struct {
 	db *sql.DB
@@ -65,7 +70,7 @@ func InitDB(filepath string) *sql.DB {
 	}
 
 	if db == nil {
-		panic("DB Not found!")
+		cliError(errors.New("DB Not found!"))
 	}
 
 	return db
@@ -85,7 +90,7 @@ func CreateTable(db *sql.DB) {
 
 	_, err := db.Exec(table)
 	if err != nil {
-		panic(err)
+		cliError(errors.New("Failed to create database table."))
 	}
 }
 
@@ -103,16 +108,12 @@ func (proj *Proj) SaveProject(project Project) {
 
 	stmt, err := proj.db.Prepare(sqlAdd)
 
-	if err != nil {
-		log.Panic(err)
-	}
-
 	defer stmt.Close()
 
 	_, err = stmt.Exec(project.ID, project.Name, project.Path, project.Command)
 
 	if err != nil {
-		log.Panic(err)
+		cliError(errors.New("Failed to save project."))
 	}
 }
 
@@ -127,7 +128,7 @@ func (proj *Proj) UpdateProject(project Project) {
 	stmt, err := proj.db.Prepare(update)
 
 	if err != nil {
-		log.Panic(err)
+		cliError(errors.New("Failed to update project."))
 	}
 
 	defer stmt.Close()
@@ -153,7 +154,7 @@ func (proj *Proj) LoadProject(name string) Project {
 	err := row.Scan(&project.ID, &project.Name, &project.Command, &project.Path)
 
 	if err != nil {
-		log.Panic(err)
+		cliError(errors.New("Failed to load project."))
 	}
 
 	return project
@@ -215,8 +216,12 @@ func (proj *Proj) StartProject(name string) {
 
 	// Execute command
 	printCommand(cmd)
+
 	err := cmd.Run() // will wait for command to return
-	printError(err)
+
+	if err != nil {
+		cliError(err)
+	}
 
 	// Only output the commands stdout
 	printOutput(cmdOutput.Bytes())
@@ -224,12 +229,6 @@ func (proj *Proj) StartProject(name string) {
 
 func printCommand(cmd *exec.Cmd) {
 	color.Magenta("==> Executing: %s\n", strings.Join(cmd.Args, " "))
-}
-
-func printError(err error) {
-	if err != nil {
-		os.Stderr.WriteString(fmt.Sprintf("==> Error: %s\n", err.Error()))
-	}
 }
 
 func printOutput(outs []byte) {
