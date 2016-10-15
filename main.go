@@ -19,6 +19,8 @@ import (
 )
 
 var (
+
+	// New app instance.
 	app = kingpin.New("app", "Codebase project management for pro's.")
 
 	// $ proj init --name=MyProject --command="docker-compose build"
