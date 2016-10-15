@@ -1,5 +1,8 @@
 # Proj
 
+![Proj Screenshot]
+(proj-screenshot.png)
+
 ## A command line tool for switching codebases, projects, and context. 
 
 ### Primer:
